@@ -1,4 +1,4 @@
 #![no_std]
 
-mod rumba;
-pub use rumba::*;
+mod device;
+pub use device::*;
