@@ -1,0 +1,11 @@
+[package]
+name = "rumba"
+version = "0.1.0"
+authors = ["Javier Alvarez <javier.alvarez@allthingsembedded.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+embedded-hal = "0.2"
+nb = "0.1"
