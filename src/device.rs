@@ -153,3 +153,94 @@ where
         self.enter_off_state();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    extern crate std;
+
+    use std::assert_eq;
+    use std::cell::RefCell;
+    use std::vec;
+    use std::vec::Vec;
+
+    struct MockSerial<'a> {
+        data: &'a RefCell<Vec<u8>>,
+    }
+
+    impl<'a> Write<u8> for MockSerial<'a> {
+        type Error = core::convert::Infallible;
+        fn write(&mut self, value: u8) -> nb::Result<(), Self::Error> {
+            self.data.borrow_mut().push(value);
+            Ok(())
+        }
+        fn flush(&mut self) -> nb::Result<(), Self::Error> {
+            Ok(())
+        }
+    }
+
+    impl<'a> Read<u8> for MockSerial<'a> {
+        type Error = core::convert::Infallible;
+        fn read(&mut self) -> nb::Result<u8, Self::Error> {
+            Ok(0)
+        }
+    }
+
+    #[test]
+    fn rumba_is_droped() {
+        let vector = std::cell::RefCell::new(std::vec![]);
+        let serial = MockSerial { data: &vector };
+        {
+            let _ = Rumba::new(serial);
+        }
+        assert_eq!(*vector.borrow(), vec![173]);
+    }
+
+    #[test]
+    fn rumba_enters_passive() {
+        let vector = std::cell::RefCell::new(std::vec![]);
+        let serial = MockSerial { data: &vector };
+        {
+            let rumba = Rumba::new(serial);
+            assert_eq!(*vector.borrow(), vec![]);
+            let _rumba = rumba.into_passive();
+            assert_eq!(*vector.borrow(), vec![128]);
+            vector.borrow_mut().clear();
+        }
+        assert_eq!(*vector.borrow(), vec![173]);
+    }
+
+    #[test]
+    fn rumba_sends_song() {
+        let vector = std::cell::RefCell::new(std::vec![]);
+        let serial = MockSerial { data: &vector };
+        {
+            let rumba = Rumba::new(serial);
+            assert_eq!(*vector.borrow(), vec![]);
+            let mut rumba = rumba.into_passive();
+            assert_eq!(*vector.borrow(), vec![128]);
+            vector.borrow_mut().clear();
+
+            rumba.send_song(SongSlot::First).unwrap();
+            assert_eq!(*vector.borrow(), vec![140, 0, 2, 86, 64, 74, 64]);
+            vector.borrow_mut().clear();
+        }
+        assert_eq!(*vector.borrow(), vec![173]);
+    }
+
+    #[test]
+    fn rumba_enters_safe() {
+        let vector = std::cell::RefCell::new(std::vec![]);
+        let serial = MockSerial { data: &vector };
+
+        let rumba = Rumba::new(serial);
+        assert_eq!(*vector.borrow(), vec![]);
+
+        let rumba = rumba.into_passive();
+        assert_eq!(*vector.borrow(), vec![128]);
+        vector.borrow_mut().clear();
+
+        let _rumba = rumba.into_safe();
+        assert_eq!(*vector.borrow(), vec![131]);
+    }
+}
