@@ -42,7 +42,7 @@ impl Into<u8> for SongSlot {
 
 /// Representation of a Roomba instance.
 pub struct Rumba<T: Read<u8> + Write<u8>, MODE> {
-    io_port: T,
+    io_port: Option<T>,
     _mode: PhantomData<MODE>,
 }
 
@@ -53,7 +53,7 @@ where
     /// Constructs a roomba from the given serial port in the Off state
     pub fn new(io_port: T) -> Self {
         Rumba {
-            io_port,
+            io_port: Some(io_port),
             _mode: PhantomData,
         }
     }
@@ -64,7 +64,7 @@ where
             panic!("Error entering the off state failed!");
         }
         Rumba {
-            io_port: self.io_port,
+            io_port: Some(self.decompose()),
             _mode: PhantomData,
         }
     }
@@ -78,7 +78,7 @@ where
     pub fn into_off(mut self) -> Rumba<T, mode::Off> {
         self.enter_off_state();
         Rumba {
-            io_port: self.io_port,
+            io_port: Some(self.decompose()),
             _mode: PhantomData,
         }
     }
@@ -89,7 +89,7 @@ where
             panic!("Error entering the off state failed!");
         }
         Rumba {
-            io_port: self.io_port,
+            io_port: Some(self.decompose()),
             _mode: PhantomData,
         }
     }
@@ -116,7 +116,7 @@ where
     pub fn into_off(mut self) -> Rumba<T, mode::Off> {
         self.enter_off_state();
         Rumba {
-            io_port: self.io_port,
+            io_port: Some(self.decompose()),
             _mode: PhantomData,
         }
     }
@@ -128,7 +128,7 @@ where
 {
     fn write(&mut self, buffer: &[u8]) -> Result<(), <T as Write<u8>>::Error> {
         for element in buffer {
-            nb::block!(self.io_port.write(*element))?;
+            nb::block!(self.io_port.as_mut().unwrap().write(*element))?;
         }
         Ok(())
     }
@@ -137,5 +137,19 @@ where
         if let Err(_error) = self.write(&[173]) {
             panic!("Error entering the off state failed!");
         }
+    }
+
+    fn decompose(self) -> T {
+        let mut roomba = core::mem::ManuallyDrop::new(self);
+        roomba.io_port.take().unwrap()
+    }
+}
+
+impl<T, MODE> Drop for Rumba<T, MODE>
+where
+    T: Read<u8> + Write<u8>,
+{
+    fn drop(&mut self) {
+        self.enter_off_state();
     }
 }
