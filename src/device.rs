@@ -100,6 +100,18 @@ where
         self.write(&[140, song.into(), 2, 86, 64, 74, 64])?;
         Ok(())
     }
+
+    /// Starts/stops the cleaning mode in Rumba
+    pub fn clean(&mut self) -> Result<(), <T as Write<u8>>::Error> {
+        self.write(&[135])?;
+        Ok(())
+    }
+
+    /// Starts cleaning in max mode
+    pub fn max_clean(&mut self) -> Result<(), <T as Write<u8>>::Error> {
+        self.write(&[136])?;
+        Ok(())
+    }
 }
 
 impl<T> Rumba<T, mode::Safe>
