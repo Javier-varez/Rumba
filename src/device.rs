@@ -60,9 +60,7 @@ where
 
     /// Switches to the Passive state
     pub fn into_passive(mut self) -> Rumba<T, mode::Passive> {
-        if let Err(_error) = self.write(&[128]) {
-            panic!("Error entering the off state failed!");
-        }
+        self.enter_passive_state();
         Rumba {
             io_port: Some(self.decompose()),
             _mode: PhantomData,
@@ -132,6 +130,15 @@ where
             _mode: PhantomData,
         }
     }
+
+    /// Switches to the Passive state
+    pub fn into_passive(mut self) -> Rumba<T, mode::Passive> {
+        self.enter_passive_state();
+        Rumba {
+            io_port: Some(self.decompose()),
+            _mode: PhantomData,
+        }
+    }
 }
 
 impl<T, MODE> Rumba<T, MODE>
@@ -148,6 +155,12 @@ where
     fn enter_off_state(&mut self) {
         if let Err(_error) = self.write(&[173]) {
             panic!("Error entering the off state failed!");
+        }
+    }
+
+    fn enter_passive_state(&mut self) {
+        if let Err(_error) = self.write(&[128]) {
+            panic!("Error entering the passive state failed!");
         }
     }
 
@@ -254,5 +267,25 @@ mod tests {
 
         let _rumba = rumba.into_safe();
         assert_eq!(*vector.borrow(), vec![131]);
+    }
+
+    #[test]
+    fn rumba_back_to_passive() {
+        let vector = std::cell::RefCell::new(std::vec![]);
+        let serial = MockSerial { data: &vector };
+
+        let rumba = Rumba::new(serial);
+        assert_eq!(*vector.borrow(), vec![]);
+
+        let rumba = rumba.into_passive();
+        assert_eq!(*vector.borrow(), vec![128]);
+        vector.borrow_mut().clear();
+
+        let rumba = rumba.into_safe();
+        assert_eq!(*vector.borrow(), vec![131]);
+        vector.borrow_mut().clear();
+
+        let _rumba = rumba.into_passive();
+        assert_eq!(*vector.borrow(), vec![128]);
     }
 }
