@@ -40,6 +40,70 @@ impl Into<u8> for SongSlot {
     }
 }
 
+/// Represents the duration of a single note
+pub struct NoteDuration {
+    ticks: u8,
+}
+
+pub mod prelude {
+    use super::NoteDuration;
+
+    pub trait U16Ext {
+        fn ms(self) -> NoteDuration;
+    }
+
+    impl U16Ext for u16 {
+        fn ms(self) -> NoteDuration {
+            let ticks = (self as u64 * 64 / 1000) as u8;
+            NoteDuration { ticks }
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum NoteOctave {
+    Silent = 0,
+    Contra = 24,
+    Great = 36,
+    Small = 48,
+    OneLined = 60,
+    TwoLined = 72,
+    ThreeLined = 84,
+    FourLined = 96,
+}
+
+#[derive(Clone, Copy)]
+pub enum NoteName {
+    C = 0,
+    CSharp = 1,
+    D = 2,
+    DSharp = 3,
+    E = 4,
+    F = 5,
+    FSharp = 6,
+    G = 7,
+    GSharp = 8,
+    A = 9,
+    ASharp = 10,
+    B = 11,
+}
+
+pub struct Note {
+    pub name: NoteName,
+    pub octave: NoteOctave,
+    pub duration: NoteDuration,
+}
+
+impl Note {
+    fn duration(&self) -> u8 {
+        self.duration.ticks
+    }
+
+    fn midi_value(&self) -> u8 {
+        self.name as u8 + self.octave as u8
+    }
+}
+
 /// Representation of a Roomba instance.
 pub struct Rumba<T: Read<u8> + Write<u8>, MODE> {
     io_port: Option<T>,
@@ -93,9 +157,20 @@ where
     }
 
     /// Sends a predefined song to the Rumba at the specified slot
-    pub fn send_song(&mut self, song: SongSlot) -> Result<(), <T as Write<u8>>::Error> {
-        // Default two-note song for now
-        self.write(&[140, song.into(), 2, 86, 64, 74, 64])?;
+    pub fn send_song(
+        &mut self,
+        song: SongSlot,
+        notes: &[Note],
+    ) -> Result<(), <T as Write<u8>>::Error> {
+        let mut buffer = [0; 35];
+        buffer[0] = 140;
+        buffer[1] = song.into();
+        buffer[2] = notes.len() as u8;
+        for (index, element) in notes.iter().enumerate() {
+            buffer[3 + index * 2] = element.midi_value();
+            buffer[4 + index * 2] = element.duration();
+        }
+        self.write(&buffer[..3 + 2 * notes.len()])?;
         Ok(())
     }
 
@@ -181,7 +256,9 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::prelude::U16Ext;
     use super::*;
+
     extern crate std;
 
     use std::assert_eq;
@@ -246,7 +323,20 @@ mod tests {
             assert_eq!(*vector.borrow(), vec![128]);
             vector.borrow_mut().clear();
 
-            rumba.send_song(SongSlot::First).unwrap();
+            let song = [
+                Note {
+                    name: NoteName::D,
+                    duration: 1000.ms(),
+                    octave: NoteOctave::ThreeLined,
+                },
+                Note {
+                    name: NoteName::D,
+                    duration: 1000.ms(),
+                    octave: NoteOctave::TwoLined,
+                },
+            ];
+
+            rumba.send_song(SongSlot::First, &song).unwrap();
             assert_eq!(*vector.borrow(), vec![140, 0, 2, 86, 64, 74, 64]);
             vector.borrow_mut().clear();
         }
@@ -287,5 +377,10 @@ mod tests {
 
         let _rumba = rumba.into_passive();
         assert_eq!(*vector.borrow(), vec![128]);
+    }
+
+    #[test]
+    fn note_duration_from_ms() {
+        assert_eq!(16u16.ms().ticks, 1);
     }
 }
