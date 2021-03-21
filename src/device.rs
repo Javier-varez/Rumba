@@ -23,21 +23,10 @@ pub mod mode {
 /// Selects the slot that will be used to store/play the song.
 #[derive(Clone, Copy)]
 pub enum SongSlot {
-    First,
-    Second,
-    Third,
-    Fourth,
-}
-
-impl Into<u8> for SongSlot {
-    fn into(self) -> u8 {
-        match self {
-            SongSlot::First => 0,
-            SongSlot::Second => 1,
-            SongSlot::Third => 2,
-            SongSlot::Fourth => 3,
-        }
-    }
+    First = 0,
+    Second = 1,
+    Third = 2,
+    Fourth = 3,
 }
 
 /// Represents the duration of a single note
@@ -164,7 +153,7 @@ where
     ) -> Result<(), <T as Write<u8>>::Error> {
         let mut buffer = [0; 35];
         buffer[0] = 140;
-        buffer[1] = song.into();
+        buffer[1] = song as u8;
         buffer[2] = notes.len() as u8;
         for (index, element) in notes.iter().enumerate() {
             buffer[3 + index * 2] = element.midi_value();
@@ -193,7 +182,7 @@ where
 {
     /// Plays the specified song
     pub fn play_song(&mut self, song: SongSlot) -> Result<(), <T as Write<u8>>::Error> {
-        self.write(&[141, song.into()])?;
+        self.write(&[141, song as u8])?;
         Ok(())
     }
 
