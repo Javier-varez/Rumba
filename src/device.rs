@@ -2,6 +2,8 @@ use core::marker::PhantomData;
 use embedded_hal::serial::Read;
 use embedded_hal::serial::Write;
 
+/// Rumba can perform certain actions only in certain modes. This module contains the possible
+/// modes the Rumba can belong to.
 pub mod mode {
     /// Rumba starts in the Off mode and transitions to Passive when the start is requested.
     pub struct Off;
@@ -29,11 +31,19 @@ pub enum SongSlot {
     Fourth = 3,
 }
 
-/// Represents the duration of a single note
+/// Represents the duration of a single note in ticks of 1/64 seconds. You can construct an
+/// instance of this structure using the U16Ext trait for u16 in the prelude:
+/// ```rust
+/// use rumba::{NoteDuration, prelude::*};
+///
+/// let duration: NoteDuration = 64u16.ms();
+/// ```
 pub struct NoteDuration {
     ticks: u8,
 }
 
+/// Common traits for the Rumba. This includes an extension for u16 to convert it into milliseconds
+/// for the Rumba timebase
 pub mod prelude {
     use super::NoteDuration;
 
@@ -49,6 +59,8 @@ pub mod prelude {
     }
 }
 
+/// Octave of a note. An octave marks the difference between a note and another of double the
+/// frequency. Each of these octaves represent a range of frequencies.
 #[derive(Clone, Copy)]
 pub enum NoteOctave {
     Silent = 0,
@@ -61,6 +73,8 @@ pub enum NoteOctave {
     FourLined = 96,
 }
 
+/// Name of the note. It does not identify the freqnency of the note, since it does not have an
+/// associated octave.
 #[derive(Clone, Copy)]
 pub enum NoteName {
     C = 0,
@@ -77,6 +91,7 @@ pub enum NoteName {
     B = 11,
 }
 
+/// Complete note representation. It has an associated octave and name and duration.
 pub struct Note {
     pub name: NoteName,
     pub octave: NoteOctave,
